@@ -1,11 +1,15 @@
 #include <bytematrix.h>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <future>
+#include <set>
 #include <thread>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -22,68 +26,36 @@ namespace {
     constexpr std::size_t kMinimumLength = 1;
     constexpr std::size_t kMaximumLength = 100;
 
-    TEST(ByteGeneratorTest, ProducesPayloadsWithinTheRequiredBounds)
+    std::vector<ByteArray> sample(std::size_t count)
     {
         auto generator = bytematrix::createGenerator();
         CollectingModule sink;
         generator->setNext(&sink);
 
         generator->start();
-        ASSERT_TRUE(sink.waitForAtLeast(300));
+        const bool enough = sink.waitForAtLeast(count, 30s);
         generator->stop();
 
-        for (const ByteArray& payload : sink.payloads())
+        EXPECT_TRUE(enough) << "the generator stopped delivering before reaching the sample size";
+
+        std::vector<ByteArray> payloads = sink.payloads();
+        if (payloads.size() > count)
         {
-            EXPECT_GE(payload.size(), kMinimumLength);
-            EXPECT_LE(payload.size(), kMaximumLength);
+            payloads.resize(count);
         }
+
+        return payloads;
     }
 
-    TEST(ByteGeneratorTest, UsesTheWholeLengthRange)
+    std::size_t total_bytes(const std::vector<ByteArray>& payloads)
     {
-        auto generator = bytematrix::createGenerator();
-        CollectingModule sink;
-        generator->setNext(&sink);
-
-        generator->start();
-        ASSERT_TRUE(sink.waitForAtLeast(300));
-        generator->stop();
-
-        std::size_t shortest = kMaximumLength;
-        std::size_t longest = kMinimumLength;
-        for (const ByteArray& payload : sink.payloads())
+        std::size_t bytes = 0;
+        for (const ByteArray& payload : payloads)
         {
-            shortest = std::min(shortest, payload.size());
-            longest = std::max(longest, payload.size());
+            bytes += payload.size();
         }
 
-        EXPECT_LT(shortest, 20U) << "the low end of [1..100] must be reachable";
-        EXPECT_GT(longest, 80U) << "the high end of [1..100] must be reachable";
-    }
-
-    TEST(ByteGeneratorTest, ProducesByteValuesAcrossTheWholeRange)
-    {
-        auto generator = bytematrix::createGenerator();
-        CollectingModule sink;
-        generator->setNext(&sink);
-
-        generator->start();
-        ASSERT_TRUE(sink.waitForAtLeast(300));
-        generator->stop();
-
-        bool seenLow = false;
-        bool seenHigh = false;
-        for (const ByteArray& payload : sink.payloads())
-        {
-            for (const std::uint8_t value : payload)
-            {
-                seenLow = seenLow || value < 16;
-                seenHigh = seenHigh || value > 239;
-            }
-        }
-
-        EXPECT_TRUE(seenLow);
-        EXPECT_TRUE(seenHigh);
+        return bytes;
     }
 
     TEST(ByteGeneratorTest, StopsDeliveringAfterStopReturns)
@@ -267,5 +239,191 @@ namespace {
 
         EXPECT_TRUE(sink.waitForAtLeast(10));
         generator->stop();
+    }
+
+    TEST(GeneratorRandomness, ConsecutivePayloadsAreNeverRepeated)
+    {
+        const std::vector<ByteArray> payloads = sample(1000);
+        ASSERT_GT(payloads.size(), 100U);
+
+        std::size_t repeats = 0;
+        for (std::size_t index = 1; index < payloads.size(); ++index)
+        {
+            if (payloads[index].size() < 2 || payloads[index - 1].size() < 2)
+            {
+                continue;
+            }
+
+            if (payloads[index] == payloads[index - 1])
+            {
+                ++repeats;
+            }
+        }
+
+        EXPECT_EQ(repeats, 0U) << "consecutive payloads repeated: the engine is not advancing";
+    }
+
+    TEST(GeneratorRandomness, GeneratorsCreatedTogetherProduceDifferentStreams)
+    {
+        auto first = bytematrix::createGenerator();
+        auto second = bytematrix::createGenerator();
+
+        CollectingModule firstSink;
+        CollectingModule secondSink;
+        first->setNext(&firstSink);
+        second->setNext(&secondSink);
+
+        first->start();
+        second->start();
+        ASSERT_TRUE(firstSink.waitForAtLeast(20, 10s));
+        ASSERT_TRUE(secondSink.waitForAtLeast(20, 10s));
+        first->stop();
+        second->stop();
+
+        std::vector<ByteArray> firstPayloads = firstSink.payloads();
+        std::vector<ByteArray> secondPayloads = secondSink.payloads();
+        firstPayloads.resize(20);
+        secondPayloads.resize(20);
+
+        EXPECT_NE(firstPayloads, secondPayloads) << "two generators shared a seed";
+    }
+
+    TEST(GeneratorRandomness, ByteValuesAreUniformlyDistributed)
+    {
+        const std::vector<ByteArray> payloads = sample(500);
+        ASSERT_GT(payloads.size(), 400U);
+
+        std::array<std::size_t, 256> histogram{};
+        for (const ByteArray& payload : payloads)
+        {
+            for (const std::uint8_t value : payload)
+            {
+                ++histogram[value];
+            }
+        }
+
+        const std::size_t bytes = total_bytes(payloads);
+        ASSERT_GT(bytes, 20000U);
+
+        const auto lowest = std::min_element(histogram.begin(), histogram.end());
+        const auto highest = std::max_element(histogram.begin(), histogram.end());
+        const std::size_t expected = bytes / histogram.size();
+
+        EXPECT_GT(*lowest, expected / 2)
+            << "byte value " << (lowest - histogram.begin()) << " is under-represented";
+        EXPECT_LT(*highest, expected * 2)
+            << "byte value " << (highest - histogram.begin()) << " is over-represented";
+    }
+
+    TEST(GeneratorRandomness, BytesVaryWithinASinglePayload)
+    {
+        const std::vector<ByteArray> payloads = sample(300);
+        ASSERT_GT(payloads.size(), 250U);
+
+        std::size_t considered = 0;
+        std::size_t uniform = 0;
+        for (const ByteArray& payload : payloads)
+        {
+            if (payload.size() < 8)
+            {
+                continue;
+            }
+
+            ++considered;
+            const auto differs =
+                std::find_if(payload.begin(), payload.end(), [&payload](std::uint8_t value) {
+                    return value != payload.front();
+                });
+
+            if (differs == payload.end())
+            {
+                ++uniform;
+            }
+        }
+
+        ASSERT_GT(considered, 100U);
+        EXPECT_EQ(uniform, 0U) << "a payload was filled with a single repeated byte value";
+    }
+
+    TEST(GeneratorRandomness, LengthsAreUniformlyDistributed)
+    {
+        const std::vector<ByteArray> payloads = sample(5000);
+        ASSERT_GT(payloads.size(), 4900U);
+
+        std::array<std::size_t, kMaximumLength + 1> histogram{};
+        std::size_t outside = 0;
+        for (const ByteArray& payload : payloads)
+        {
+            if (payload.size() < kMinimumLength || payload.size() > kMaximumLength)
+            {
+                ++outside;
+                continue;
+            }
+
+            ++histogram[payload.size()];
+        }
+
+        EXPECT_EQ(outside, 0U) << "a length outside [1..100] was generated";
+
+        std::size_t lowest = payloads.size();
+        std::size_t highest = 0;
+        for (std::size_t length = kMinimumLength; length <= kMaximumLength; ++length)
+        {
+            EXPECT_GT(histogram[length], 0U) << "length " << length << " was never generated";
+            lowest = std::min(lowest, histogram[length]);
+            highest = std::max(highest, histogram[length]);
+        }
+
+        const std::size_t expected = payloads.size() / kMaximumLength;
+        EXPECT_GT(lowest, expected / 4) << "some lengths are far under-represented";
+        EXPECT_LT(highest, expected * 2) << "some lengths are far over-represented";
+    }
+
+    TEST(GeneratorRandomness, LongPayloadsDoNotRepeat)
+    {
+        const std::vector<ByteArray> payloads = sample(1000);
+        ASSERT_GT(payloads.size(), 900U);
+
+        std::set<ByteArray> distinct;
+        std::size_t longPayloads = 0;
+        for (const ByteArray& payload : payloads)
+        {
+            if (payload.size() < 8)
+            {
+                continue;
+            }
+
+            ++longPayloads;
+            distinct.insert(payload);
+        }
+
+        EXPECT_GT(longPayloads, 500U);
+        EXPECT_EQ(distinct.size(), longPayloads);
+    }
+
+    TEST(GeneratorRandomness, TheStatementPatternAlmostNeverAppears)
+    {
+        constexpr std::size_t kPayloads = 50000;
+        const std::array<std::uint8_t, 3> kPattern{0x00, 0x01, 0x02};
+
+        const std::vector<ByteArray> payloads = sample(kPayloads);
+        ASSERT_GT(payloads.size(), kPayloads - 100);
+
+        std::size_t hits = 0;
+        for (const ByteArray& payload : payloads)
+        {
+            if (std::search(payload.begin(), payload.end(), kPattern.begin(), kPattern.end()) !=
+                payload.end())
+            {
+                ++hits;
+            }
+        }
+
+        const std::size_t bytes = total_bytes(payloads);
+        std::printf("[          ] %zu payloads, %zu bytes, %zu occurrences of 00 01 02 "
+                    "(expected ~%.2f)\n",
+                    payloads.size(), bytes, hits, static_cast<double>(bytes) / 16777216.0);
+
+        EXPECT_LE(hits, 4U) << "the three-byte pattern is supposed to be rare";
     }
 }

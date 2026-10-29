@@ -1,16 +1,15 @@
-#include "support/collecting_module.hpp"
-#include "support/cout_capture.hpp"
-#include "support/records.hpp"
-
-#include <gtest/gtest.h>
-
 #include <chrono>
 #include <cstdio>
 #include <future>
+#include <gtest/gtest.h>
 #include <iostream>
 #include <string>
 #include <thread>
 #include <vector>
+
+#include "support/collecting_module.hpp"
+#include "support/cout_capture.hpp"
+#include "support/records.hpp"
 
 namespace {
     using namespace std::chrono_literals;

@@ -1,7 +1,7 @@
 #ifndef BYTEMATRIX_TESTS_SUPPORT_BLOCKING_MODULE_HPP
 #define BYTEMATRIX_TESTS_SUPPORT_BLOCKING_MODULE_HPP
 
-#include "bytematrix.h"
+#include <bytematrix.h>
 
 #include <chrono>
 #include <condition_variable>

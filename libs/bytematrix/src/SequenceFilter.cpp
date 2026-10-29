@@ -4,8 +4,6 @@
 #include <array>
 #include <utility>
 
-#include "../include/bytematrix.h"
-
 namespace bytematrix {
     namespace {
         constexpr std::array<std::uint8_t, 3> kSequence{0x00, 0x01, 0x02};

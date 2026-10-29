@@ -1,5 +1,4 @@
 #include "QueuedModule.hpp"
-#include "../include/bytematrix.h"
 
 #include <utility>
 

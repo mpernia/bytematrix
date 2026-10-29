@@ -1,14 +1,13 @@
-#include "../include/bytematrix.h"
-
 #include "../src/detail/queue.hpp"
 
 #include <chrono>
 #include <cstdint>
 #include <future>
+#include <gtest/gtest.h>
 #include <initializer_list>
 #include <thread>
 
-#include <gtest/gtest.h>
+#include <bytematrix.h>
 
 namespace {
     using namespace std::chrono_literals;

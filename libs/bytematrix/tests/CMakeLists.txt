@@ -6,6 +6,9 @@ add_executable(version_test
         support_test.cpp
         generator_test.cpp
         filter_test.cpp
+        record_array_test.cpp
+        lifecycle_test.cpp
+        pipeline_test.cpp
 )
 
 target_link_libraries(version_test PRIVATE

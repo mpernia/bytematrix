@@ -1,17 +1,15 @@
-#include <bytematrix.h>
-
 #include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <future>
+#include <gtest/gtest.h>
 #include <initializer_list>
 #include <thread>
 
-#include <gtest/gtest.h>
-
 #include "support/blocking_module.hpp"
 #include "support/collecting_module.hpp"
+#include <bytematrix.h>
 
 namespace {
     using namespace std::chrono_literals;
@@ -121,16 +119,27 @@ namespace {
         entered.get_future().wait();
         auto result = accepted.get_future();
 
-        EXPECT_EQ(result.wait_for(200ms), std::future_status::timeout)
-            << "the 101st payload must wait for room";
+        const auto beforeStart = result.wait_for(200ms);
 
         filter->start();
 
-        ASSERT_EQ(result.wait_for(2s), std::future_status::ready);
-        EXPECT_TRUE(result.get());
-        EXPECT_TRUE(sink.waitForAtLeast(bytematrix::kInputBufferCapacity + 1));
+        const auto afterStart = result.wait_for(2s);
+        bool lastAccepted = false;
+        if (afterStart == std::future_status::ready)
+        {
+            lastAccepted = result.get();
+        }
+
+        const bool forwarded = sink.waitForAtLeast(bytematrix::kInputBufferCapacity + 1);
+
         filter->stop();
 
+        EXPECT_EQ(beforeStart, std::future_status::timeout)
+            << "the 101st payload must wait for room";
+        EXPECT_EQ(afterStart, std::future_status::ready)
+            << "draining the buffer must let the 101st payload through";
+        EXPECT_TRUE(lastAccepted);
+        EXPECT_TRUE(forwarded);
         EXPECT_EQ(sink.size(), bytematrix::kInputBufferCapacity + 1);
     }
 

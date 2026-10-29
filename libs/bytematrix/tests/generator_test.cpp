@@ -1,5 +1,3 @@
-#include <bytematrix.h>
-
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -7,14 +5,14 @@
 #include <cstdint>
 #include <cstdio>
 #include <future>
+#include <gtest/gtest.h>
 #include <set>
 #include <thread>
 #include <vector>
 
-#include <gtest/gtest.h>
-
 #include "support/blocking_module.hpp"
 #include "support/collecting_module.hpp"
+#include <bytematrix.h>
 
 namespace {
     using namespace std::chrono_literals;
@@ -305,8 +303,8 @@ namespace {
         const std::size_t bytes = total_bytes(payloads);
         ASSERT_GT(bytes, 20000U);
 
-        const auto lowest = std::min_element(histogram.begin(), histogram.end());
-        const auto highest = std::max_element(histogram.begin(), histogram.end());
+        auto* const lowest = std::ranges::min_element(histogram);
+        auto* const highest = std::ranges::max_element(histogram);
         const std::size_t expected = bytes / histogram.size();
 
         EXPECT_GT(*lowest, expected / 2)
@@ -330,12 +328,12 @@ namespace {
             }
 
             ++considered;
-            const auto differs =
-                std::find_if(payload.begin(), payload.end(), [&payload](std::uint8_t value) {
-                    return value != payload.front();
+            const bool uniformPayload =
+                std::ranges::all_of(payload, [first = payload.front()](std::uint8_t value) {
+                    return value == first;
                 });
 
-            if (differs == payload.end())
+            if (uniformPayload)
             {
                 ++uniform;
             }
@@ -412,8 +410,7 @@ namespace {
         std::size_t hits = 0;
         for (const ByteArray& payload : payloads)
         {
-            if (std::search(payload.begin(), payload.end(), kPattern.begin(), kPattern.end()) !=
-                payload.end())
+            if (!std::ranges::search(payload, kPattern).empty())
             {
                 ++hits;
             }

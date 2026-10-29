@@ -1,13 +1,13 @@
 #ifndef BYTEMATRIX_QUEUEDMODULE_HPP
 #define BYTEMATRIX_QUEUEDMODULE_HPP
 
-#include "../include/bytematrix.h"
-#include "detail/queue.hpp"
-
 #include <atomic>
 #include <cstddef>
 #include <thread>
 #include <utility>
+
+#include "bytematrix.h"
+#include "detail/queue.hpp"
 
 namespace bytematrix {
     class QueuedModule : public IModule

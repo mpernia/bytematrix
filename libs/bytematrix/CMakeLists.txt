@@ -13,6 +13,7 @@ add_library(bytematrix STATIC
         src/bytematrix.cpp
         src/QueuedModule.cpp
         src/SequenceFilter.cpp
+        src/ByteArrayRecorder.cpp
 )
 
 target_include_directories(bytematrix PUBLIC include)

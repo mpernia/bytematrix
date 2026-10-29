@@ -26,12 +26,21 @@ namespace bytematrix {
         // Starts the internal worker thread. Idempotent.
         virtual void start() = 0;
 
-        // Stops the worker, draining what is still buffered. Idempotent, and
-        // called by the destructor of each module.
+        /*
+        Stops the worker, draining what is still buffered. Idempotent, and
+        called by the destructor of each module.
+        If the worker is parked in the successor's submit(), stop() returns
+        once that successor makes room: a running successor drains, a stopped
+        one answers false at once. Stopping the source first therefore loses
+        nothing in flight; stopping the sink first is faster but drops what
+        the middle modules still buffer.
+        */
         virtual void stop() = 0;
 
-        // Delivers one payload. Blocks while the input buffer is full
-        // (backpressure) and returns false when the module is stopped.
+        /*
+        Delivers one payload. Blocks while the input buffer is full
+        (backpressure) and returns false when the module is stopped.
+        */
         virtual bool submit(ByteArray data) = 0;
 
     private:
@@ -62,7 +71,7 @@ namespace bytematrix {
     module will be able to receive up to 100 byte arrays from the second module
     using an input buffer.
     */
-    [[nodiscard]] std::unique_ptr<IModule> createRegister();
+    [[nodiscard]] std::unique_ptr<IModule> createRecorder();
 }
 
 #endif // BYTEMATRIX_H

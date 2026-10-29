@@ -5,8 +5,6 @@
 #include <thread>
 #include <utility>
 
-#include "../include/bytematrix.h"
-
 namespace bytematrix {
     ByteGenerator::~ByteGenerator()
     {

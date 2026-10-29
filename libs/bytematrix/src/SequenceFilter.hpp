@@ -1,11 +1,10 @@
 #ifndef BYTEMATRIX_SEQUENCEFILTER_HPP
 #define BYTEMATRIX_SEQUENCEFILTER_HPP
 
-#include "../include/bytematrix.h"
-
 #include <atomic>
 
 #include "QueuedModule.hpp"
+#include "bytematrix.h"
 
 namespace bytematrix {
     class SequenceFilter final : public QueuedModule

@@ -21,9 +21,11 @@ namespace {
         return ByteArray{values};
     }
 
+    const ByteArray kSequence = bytes({0x00, 0x01, 0x02});
+
     TEST(LifecycleTest, StartFromSeveralThreadsIsSafe)
     {
-        auto filter = bytematrix::createFilter();
+        auto filter = bytematrix::createFilter(kSequence);
         bytematrix::test::CollectingModule sink;
         filter->setNext(&sink);
 
@@ -58,7 +60,7 @@ namespace {
 
     TEST(LifecycleTest, StartIsIdempotent)
     {
-        auto filter = bytematrix::createFilter();
+        auto filter = bytematrix::createFilter(kSequence);
         bytematrix::test::CollectingModule sink;
         filter->setNext(&sink);
 
@@ -74,7 +76,7 @@ namespace {
 
     TEST(LifecycleTest, StopIsIdempotent)
     {
-        auto filter = bytematrix::createFilter();
+        auto filter = bytematrix::createFilter(kSequence);
         filter->start();
         filter->stop();
         filter->stop();
@@ -87,7 +89,7 @@ namespace {
         bytematrix::test::CollectingModule sink;
 
         {
-            auto filter = bytematrix::createFilter();
+            auto filter = bytematrix::createFilter(kSequence);
             filter->setNext(&sink);
             filter->start();
             filter->submit(bytes({0x00, 0x01, 0x02}));
@@ -98,7 +100,7 @@ namespace {
 
     TEST(LifecycleTest, StopDrainsAlreadyBufferedInput)
     {
-        auto filter = bytematrix::createFilter();
+        auto filter = bytematrix::createFilter(kSequence);
         bytematrix::test::CollectingModule sink;
         filter->setNext(&sink);
 
@@ -115,7 +117,7 @@ namespace {
 
     TEST(LifecycleTest, SubmitAfterStopIsDroppedWithoutBlocking)
     {
-        auto filter = bytematrix::createFilter();
+        auto filter = bytematrix::createFilter(kSequence);
         bytematrix::test::CollectingModule sink;
         filter->setNext(&sink);
         filter->start();
@@ -134,7 +136,7 @@ namespace {
 
     TEST(LifecycleTest, WorksWithoutADownstreamModule)
     {
-        auto filter = bytematrix::createFilter();
+        auto filter = bytematrix::createFilter(kSequence);
         filter->start();
         filter->submit(bytes({0x00, 0x01, 0x02}));
         filter->stop();

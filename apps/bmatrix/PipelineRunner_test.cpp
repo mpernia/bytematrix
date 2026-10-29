@@ -37,6 +37,10 @@ namespace {
         std::streambuf* previous_;
     };
 
+    // A four-byte sequence that random payloads of 1..100 bytes almost never
+    // contain, so it almost never forwards anything during a test run.
+    const bytematrix::ByteArray kRareSequence{0xDE, 0xAD, 0xBE, 0xEF};
+
     // Raises SIGINT once the run is already polling, so the default action can
     // never fire before the runner installs its handler.
     std::thread interrupt_after(std::chrono::milliseconds delay)
@@ -52,7 +56,7 @@ namespace {
         CoutCapture capture;
 
         {
-            PipelineRunner runner;
+            PipelineRunner runner{kRareSequence};
             runner.run(1100ms);
         }
 
@@ -67,7 +71,7 @@ namespace {
         const auto started = std::chrono::steady_clock::now();
 
         {
-            PipelineRunner runner;
+            PipelineRunner runner{kRareSequence};
             runner.run(300ms);
         }
 
@@ -82,7 +86,7 @@ namespace {
         const auto started = std::chrono::steady_clock::now();
 
         {
-            PipelineRunner runner;
+            PipelineRunner runner{kRareSequence};
             std::thread interrupter = interrupt_after(300ms);
 
             runner.run(10s);
@@ -99,7 +103,7 @@ namespace {
         CoutCapture capture;
 
         {
-            PipelineRunner runner;
+            PipelineRunner runner{kRareSequence};
             runner.run(0ms);
         }
 
@@ -115,7 +119,7 @@ namespace {
         CoutCapture capture;
 
         {
-            PipelineRunner runner;
+            PipelineRunner runner{kRareSequence};
             std::thread interrupter = interrupt_after(300ms);
 
             runner.run(10s);
@@ -126,5 +130,11 @@ namespace {
 
         EXPECT_EQ(capture.str(), "interrupted after 0 s\nfinished after 0 s\n")
             << "the interrupt flag must not leak into the next run";
+    }
+    TEST(PipelineRunnerTest, RejectsAnEmptySequence)
+    {
+        EXPECT_THROW(static_cast<void>(PipelineRunner{bytematrix::ByteArray{}}),
+                     std::invalid_argument)
+            << "the library refuses an empty sequence and the runner must not swallow it";
     }
 }

@@ -5,6 +5,7 @@
 #include <future>
 #include <gtest/gtest.h>
 #include <initializer_list>
+#include <stdexcept>
 #include <thread>
 
 #include "support/blocking_module.hpp"
@@ -23,9 +24,11 @@ namespace {
         return ByteArray{values};
     }
 
+    const ByteArray kSequence = bytes({0x00, 0x01, 0x02});
+
     TEST(SequenceFilterTest, ForwardsPayloadsContainingThePattern)
     {
-        auto filter = bytematrix::createFilter();
+        auto filter = bytematrix::createFilter(kSequence);
         CollectingModule sink;
         filter->setNext(&sink);
         filter->start();
@@ -41,7 +44,7 @@ namespace {
 
     TEST(SequenceFilterTest, DiscardsPayloadsWithoutThePattern)
     {
-        auto filter = bytematrix::createFilter();
+        auto filter = bytematrix::createFilter(kSequence);
         CollectingModule sink;
         filter->setNext(&sink);
         filter->start();
@@ -58,7 +61,7 @@ namespace {
 
     TEST(SequenceFilterTest, FindsThePatternAtTheStartTheMiddleAndTheEnd)
     {
-        auto filter = bytematrix::createFilter();
+        auto filter = bytematrix::createFilter(kSequence);
         CollectingModule sink;
         filter->setNext(&sink);
         filter->start();
@@ -74,7 +77,7 @@ namespace {
 
     TEST(SequenceFilterTest, AcceptsExactlyCapacityPayloadsBeforeStart)
     {
-        auto filter = bytematrix::createFilter();
+        auto filter = bytematrix::createFilter(kSequence);
         std::atomic<bool> submitted{false};
 
         std::thread producer{[&filter, &submitted] {
@@ -101,7 +104,7 @@ namespace {
     TEST(SequenceFilterTest, AppliesBackpressureWhenTheInputBufferIsFull)
     {
         CollectingModule sink;
-        auto filter = bytematrix::createFilter();
+        auto filter = bytematrix::createFilter(kSequence);
         filter->setNext(&sink);
 
         for (std::size_t index = 0; index < bytematrix::kInputBufferCapacity; ++index)
@@ -147,7 +150,7 @@ namespace {
     {
         CollectingModule first;
         CollectingModule second;
-        auto filter = bytematrix::createFilter();
+        auto filter = bytematrix::createFilter(kSequence);
         filter->setNext(&first);
         filter->start();
 
@@ -165,7 +168,7 @@ namespace {
     {
         CollectingModule first;
         CollectingModule second;
-        auto filter = bytematrix::createFilter();
+        auto filter = bytematrix::createFilter(kSequence);
         filter->setNext(&first);
         filter->start();
 
@@ -195,7 +198,7 @@ namespace {
     TEST(SequenceFilterTest, StopWaitsForAStuckDownstream)
     {
         BlockingModule sink;
-        auto filter = bytematrix::createFilter();
+        auto filter = bytematrix::createFilter(kSequence);
         filter->setNext(&sink);
         filter->start();
 
@@ -221,7 +224,7 @@ namespace {
     TEST(SequenceFilterTest, StopReturnsOnceTheDownstreamIsStoppedFirst)
     {
         BlockingModule sink;
-        auto filter = bytematrix::createFilter();
+        auto filter = bytematrix::createFilter(kSequence);
         filter->setNext(&sink);
         filter->start();
 
@@ -238,5 +241,43 @@ namespace {
 
         EXPECT_EQ(stopped.get_future().wait_for(2s), std::future_status::ready)
             << "stopping the sink first must let the filter stop cleanly";
+    }
+    TEST(SequenceFilterTest, ForwardsOnlyTheSequenceGivenToTheFactory)
+    {
+        auto filter = bytematrix::createFilter(bytes({0xDE, 0xAD}));
+        CollectingModule sink;
+        filter->setNext(&sink);
+        filter->start();
+
+        filter->submit(bytes({0x00, 0x01, 0x02})); // the sequence the demo used to hardcode
+        filter->submit(bytes({0xDE, 0xAD}));       // the one this filter was built with
+        ASSERT_TRUE(sink.waitForAtLeast(1));
+        filter->stop();
+
+        ASSERT_EQ(sink.size(), 1U) << "the factory argument replaces any built-in sequence";
+        EXPECT_EQ(sink.payloads().front(), bytes({0xDE, 0xAD}));
+    }
+
+    TEST(SequenceFilterTest, ForwardsALongerSequenceFoundAcrossThePayload)
+    {
+        auto filter = bytematrix::createFilter(bytes({0x10, 0x20, 0x30, 0x40}));
+        CollectingModule sink;
+        filter->setNext(&sink);
+        filter->start();
+
+        const ByteArray matching = bytes({0xFF, 0x10, 0x20, 0x30, 0x40, 0xFF});
+        filter->submit(matching);
+        ASSERT_TRUE(sink.waitForAtLeast(1));
+        filter->stop();
+
+        ASSERT_EQ(sink.size(), 1U);
+        EXPECT_EQ(sink.payloads().front(), matching) << "forwarded unchanged";
+    }
+
+    TEST(SequenceFilterTest, RejectsAnEmptySequence)
+    {
+        EXPECT_THROW(static_cast<void>(bytematrix::createFilter(ByteArray{})),
+                     std::invalid_argument)
+            << "an empty sequence matches nothing; it must not be accepted silently";
     }
 }

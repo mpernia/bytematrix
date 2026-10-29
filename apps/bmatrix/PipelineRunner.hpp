@@ -9,7 +9,7 @@
 class PipelineRunner
 {
 public:
-    PipelineRunner();
+    explicit PipelineRunner(bytematrix::ByteArray sequence);
     ~PipelineRunner();
 
     PipelineRunner(const PipelineRunner&) = delete;
@@ -21,6 +21,10 @@ private:
     void start();
     void stop();
     void print() const;
+
+    // Declared before the filter because createFilter() copies it at construction,
+    // and before the modules so their destruction stays source-first.
+    const bytematrix::ByteArray sequence_;
 
     std::unique_ptr<bytematrix::IModule> recorder_;
     std::unique_ptr<bytematrix::IModule> filter_;

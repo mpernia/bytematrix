@@ -1,15 +1,12 @@
 #include "SequenceFilter.hpp"
 
 #include <algorithm>
-#include <array>
 #include <utility>
 
 namespace bytematrix {
-    namespace {
-        constexpr std::array<std::uint8_t, 3> kSequence{0x00, 0x01, 0x02};
-    }
-
-    SequenceFilter::SequenceFilter() : QueuedModule(kInputBufferCapacity) {}
+    SequenceFilter::SequenceFilter(ByteArray sequence)
+        : QueuedModule(kInputBufferCapacity), sequence_(std::move(sequence))
+    {}
 
     void SequenceFilter::setNext(IModule* next)
     {
@@ -18,7 +15,7 @@ namespace bytematrix {
 
     void SequenceFilter::process(ByteArray data)
     {
-        const bool found = !std::ranges::search(data, kSequence).empty();
+        const bool found = !std::ranges::search(data, sequence_).empty();
 
         if (!found)
         {

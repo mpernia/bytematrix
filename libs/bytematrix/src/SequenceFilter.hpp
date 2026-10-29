@@ -10,7 +10,7 @@ namespace bytematrix {
     class SequenceFilter final : public QueuedModule
     {
     public:
-        SequenceFilter();
+        explicit SequenceFilter(ByteArray sequence);
 
         ~SequenceFilter() override
         {
@@ -24,6 +24,7 @@ namespace bytematrix {
 
     private:
         std::atomic<IModule*> next_{nullptr};
+        const ByteArray sequence_;
     };
 }
 

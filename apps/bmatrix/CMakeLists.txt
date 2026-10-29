@@ -40,6 +40,14 @@ if(BUILD_TESTING)
     set_tests_properties(BmatrixDemo.RejectsNegativeDuration PROPERTIES
             PASS_REGULAR_EXPRESSION "duration must be non-negative")
 
+    add_test(NAME BmatrixDemo.AcceptsASequenceArgument COMMAND bmatrix 1 00,01,02)
+    set_tests_properties(BmatrixDemo.AcceptsASequenceArgument PROPERTIES
+            PASS_REGULAR_EXPRESSION "finished after 1 s")
+
+    add_test(NAME BmatrixDemo.RejectsAnInvalidSequence COMMAND bmatrix 1 zz)
+    set_tests_properties(BmatrixDemo.RejectsAnInvalidSequence PROPERTIES
+            PASS_REGULAR_EXPRESSION "Invalid sequence: expected comma-separated hex bytes")
+
     find_package(GTest REQUIRED)
 
     # PipelineRunner.cpp is compiled into both executables on purpose: a test can

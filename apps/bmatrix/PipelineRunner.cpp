@@ -3,6 +3,7 @@
 #include <csignal>
 #include <iostream>
 #include <thread>
+#include <utility>
 
 namespace {
     constexpr auto kPollInterval = std::chrono::milliseconds{100};
@@ -39,9 +40,9 @@ namespace {
     };
 }
 
-PipelineRunner::PipelineRunner()
-    : recorder_(bytematrix::createRecorder()), filter_(bytematrix::createFilter()),
-      generator_(bytematrix::createGenerator())
+PipelineRunner::PipelineRunner(bytematrix::ByteArray sequence)
+    : sequence_(std::move(sequence)), recorder_(bytematrix::createRecorder()),
+      filter_(bytematrix::createFilter(sequence_)), generator_(bytematrix::createGenerator())
 {
     generator_->setNext(filter_.get());
     filter_->setNext(recorder_.get());

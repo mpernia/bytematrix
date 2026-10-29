@@ -21,13 +21,15 @@ namespace {
         return ByteArray{values};
     }
 
+    const ByteArray kSequence = bytes({0x00, 0x01, 0x02});
+
     TEST(PipelineTest, FilterForwardsOnlyMatchingPayloadsToTheRecorder)
     {
         std::string output;
 
         {
             bytematrix::test::CoutCapture capture;
-            auto filter = bytematrix::createFilter();
+            auto filter = bytematrix::createFilter(kSequence);
             auto recorder = bytematrix::createRecorder();
             filter->setNext(recorder.get());
 
@@ -59,7 +61,7 @@ namespace {
 
         {
             bytematrix::test::CoutCapture capture;
-            auto filter = bytematrix::createFilter();
+            auto filter = bytematrix::createFilter(kSequence);
             auto recorder = bytematrix::createRecorder();
             filter->setNext(recorder.get());
 
@@ -108,7 +110,7 @@ namespace {
         {
             bytematrix::test::CoutCapture capture;
             auto generator = bytematrix::createGenerator();
-            auto filter = bytematrix::createFilter();
+            auto filter = bytematrix::createFilter(kSequence);
             auto recorder = bytematrix::createRecorder();
 
             generator->setNext(filter.get());

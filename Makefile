@@ -34,7 +34,7 @@ help: ## Show this help
 	@printf '\n\033[1mbytematrix\033[0m — C++20 in Docker\n'
 	@printf 'libs/bytematrix (static library) + apps/bmatrix (consumer)\n\n'
 	@printf '\033[1mTargets\033[0m\n'
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z0-9_.-]+:.*?## / {printf "  \033[36m%-11s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z0-9_.-]+:.*?## / {printf "  \033[36m%-13s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@printf '\n\033[1mVars\033[0m\n  BUILD_TYPE=%s  SECONDS=%s  JOBS=%s\n\n' \
 		'$(BUILD_TYPE)' '$(SECONDS)' '$(JOBS)'
 
@@ -102,5 +102,28 @@ install: ## Install the library into build/prefix (for external consumers)
 	@mkdir -p $(PREFIX)/lib $(PREFIX)/include
 	@cp $(WORKDIR)/$(LIB_DIR)/include/bytematrix.h $(PREFIX)/include/
 	@cp $(WORKDIR)/$(LIB_DIR)/build/*.a $(PREFIX)/lib/
+
+
+# ---------------------------------------------------------------------------
+# Quality gate
+#
+# The library and the demo are separate CMake projects, so each one owns its
+# targets and these only delegate. `test` and `tidy` need the vendored library,
+# hence the dependency on `vendor`; `format-check` reads sources only.
+# ---------------------------------------------------------------------------
+.PHONY: format-check
+format-check: ## Check the code style of the library and the demo
+	@$(MAKE) --no-print-directory -C $(WORKDIR)/$(LIB_DIR) format-check
+	@$(MAKE) --no-print-directory -C $(WORKDIR)/$(DEMO_DIR) format-check
+
+.PHONY: test
+test: vendor ## Run the library and the demo test suites
+	@$(MAKE) --no-print-directory -C $(WORKDIR)/$(LIB_DIR) test
+	@$(MAKE) --no-print-directory -C $(WORKDIR)/$(DEMO_DIR) BUILD_TYPE=$(BUILD_TYPE) JOBS=$(JOBS) BUILD_TESTING=$(BUILD_TESTING) test
+
+.PHONY: tidy
+tidy: vendor ## Run the static analysis over the library and the demo
+	@$(MAKE) --no-print-directory -C $(WORKDIR)/$(LIB_DIR) tidy
+	@$(MAKE) --no-print-directory -C $(WORKDIR)/$(DEMO_DIR) BUILD_TYPE=$(BUILD_TYPE) JOBS=$(JOBS) BUILD_TESTING=$(BUILD_TESTING) tidy
 
 

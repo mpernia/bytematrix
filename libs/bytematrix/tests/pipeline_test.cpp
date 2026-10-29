@@ -51,8 +51,8 @@ namespace {
 
     TEST(PipelineTest, HandlesConcurrentProducersThroughTheWholeChain)
     {
-        constexpr int kProducers = 4;
-        constexpr int kPayloadsPerProducer = 5;
+        constexpr std::size_t kProducers = 4;
+        constexpr std::size_t kPayloadsPerProducer = 5;
         constexpr std::size_t kArrivals = kProducers * kPayloadsPerProducer;
 
         std::string output;
@@ -67,10 +67,12 @@ namespace {
             recorder->start();
 
             std::vector<std::thread> producers;
-            for (int producer = 0; producer < kProducers; ++producer)
+            producers.reserve(kProducers);
+
+            for (std::size_t producer = 0; producer < kProducers; ++producer)
             {
                 producers.emplace_back([&filter, producer] {
-                    for (int index = 0; index < kPayloadsPerProducer; ++index)
+                    for (std::size_t index = 0; index < kPayloadsPerProducer; ++index)
                     {
                         filter->submit(bytes({0x00, 0x01, 0x02, static_cast<std::uint8_t>(producer),
                                               static_cast<std::uint8_t>(index)}));

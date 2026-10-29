@@ -29,6 +29,8 @@ namespace {
 
         std::atomic<int> ready{0};
         std::vector<std::thread> starters;
+        starters.reserve(8);
+
         for (int index = 0; index < 8; ++index)
         {
             starters.emplace_back([&filter, &ready] {

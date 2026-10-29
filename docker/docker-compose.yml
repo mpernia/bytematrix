@@ -1,5 +1,11 @@
-# Orchestrated by the root Makefile: `make shell`, `make build`, `make test`.
-# DEV_UID / DEV_GID are exported by the Makefile from the host user.
+# Orchestrated by the root Makefile: `make shell` opens a shell in this
+# container, and the build targets (`make vendor`, `make build`, `make test`)
+# are run from inside that shell. The Makefile only starts and enters the
+# container from the host; it never runs the compilers itself.
+# DEV_UID / DEV_GID are read from the environment of whoever invokes `docker
+# compose`, defaulting to 1000:1000 when unset. The root Makefile does not set
+# them, so an unset shell means the container runs as 1000:1000: keep that in
+# sync with the host user or the mounted tree gets files owned by another uid.
 name: bytematrix
 
 services:

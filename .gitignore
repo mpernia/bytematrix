@@ -47,9 +47,16 @@ build-*/
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
-Makefile
 install_manifest.txt
 compile_commands.json
+
+# NOTE: do not ignore `Makefile` here. CMake-generated makefiles always live
+# inside a build directory, which `build/` and `build-*/` already cover; a bare
+# `Makefile` pattern would silently swallow the hand-written ones at the repo
+# root, apps/ and libs/, leaving a clone that cannot build.
+
+# CLion build trees (they ship their own .gitignore, keep a fallback anyway)
+cmake-build-*/
 
 # Temporary files
 *.tmp
@@ -66,3 +73,12 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# IDs config dirs
+*/.idea/*
+
+# Build stamps
+.docker-image.stamp
+docker/.image.stamp
+
+

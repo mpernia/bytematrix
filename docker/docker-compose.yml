@@ -1,0 +1,27 @@
+# Orchestrated by the root Makefile: `make shell`, `make build`, `make test`.
+# DEV_UID / DEV_GID are exported by the Makefile from the host user.
+name: bytematrix
+
+services:
+  dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        USER_UID: ${DEV_UID:-1000}
+        USER_GID: ${DEV_GID:-1000}
+    image: bytematrix-dev:local
+    working_dir: /workspace
+    user: "${DEV_UID:-1000}:${DEV_GID:-1000}"
+    init: true
+    stdin_open: true
+    tty: true
+    # The container stays up between make invocations: commands enter it with
+    # `docker compose exec`, so nothing is created or destroyed per target.
+    command: sleep infinity
+    environment:
+      CC: gcc-14
+      CXX: g++-14
+      TERM: ${TERM:-xterm-256color}
+    volumes:
+      - ..:/workspace

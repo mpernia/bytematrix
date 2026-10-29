@@ -11,7 +11,7 @@ ROOT_DIR := $(abspath $(CURDIR)/../..)
 CPP_FILES := $(shell find src tests -type f -name '*.cpp' 2>/dev/null)
 HDR_FILES := $(shell find include src tests -type f \( -name '*.h' -o -name '*.hpp' \) 2>/dev/null)
 
-.PHONY: all clean format format-check root test tidy tidy-src
+.PHONY: all clean format format-check root test test-tsan tidy tidy-src
 
 all:
 	cmake -S . -B build -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DBUILD_TESTING=$(BUILD_TESTING)
@@ -23,6 +23,13 @@ all:
 # and with --parallel those waits overlap instead of adding up.
 test: all
 	ctest --test-dir build --output-on-failure --parallel $(JOBS)
+
+# Instrumented and plain objects cannot be mixed, so this needs its own tree;
+# build-tsan is already covered by build-*/ in .gitignore.
+test-tsan:
+	cmake -S . -B build-tsan -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DBUILD_TESTING=$(BUILD_TESTING) -DCMAKE_CXX_FLAGS="-fsanitize=thread -g" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=thread"
+	cmake --build build-tsan --parallel $(JOBS)
+	TSAN_OPTIONS=halt_on_error=1 ctest --test-dir build-tsan --output-on-failure --parallel $(JOBS)
 
 # `format` rewrites the files. `format-check` only reports and exits non-zero,
 # so a hook or a CI job can reject style without touching the tree.

@@ -1,10 +1,10 @@
 #ifndef BYTEMATRIX_BYTEGENERATOR_H
 #define BYTEMATRIX_BYTEGENERATOR_H
 
-#include "../include/bytematrix.h"
-
 #include <atomic>
 #include <thread>
+
+#include "../include/bytematrix.h"
 
 namespace bytematrix {
     class ByteGenerator final : public IModule

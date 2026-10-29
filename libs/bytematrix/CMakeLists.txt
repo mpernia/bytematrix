@@ -11,7 +11,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_library(bytematrix STATIC
         src/ByteGenerator.cpp
         src/bytematrix.cpp
-        src/QueuedModule.cpp)
+        src/QueuedModule.cpp
+        src/SequenceFilter.cpp
+)
 
 target_include_directories(bytematrix PUBLIC include)
 

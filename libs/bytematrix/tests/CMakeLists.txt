@@ -4,6 +4,7 @@ add_executable(version_test
         version_test.cpp
         queue_test.cpp
         support_test.cpp
+        generator_test.cpp
 )
 
 target_link_libraries(version_test PRIVATE

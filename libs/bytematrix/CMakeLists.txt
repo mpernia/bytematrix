@@ -6,6 +6,28 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_library(bytematrix STATIC bytematrix.cpp)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+add_library(bytematrix STATIC
+        src/bytematrix.cpp
+        src/QueuedModule.cpp)
+
+target_include_directories(bytematrix PUBLIC include)
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(bytematrix PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+            -Wshadow
+            -Wnon-virtual-dtor
+            -Wold-style-cast
+            -Wunused)
+endif()
 target_compile_definitions(bytematrix PRIVATE BYTEMATRIX_VERSION="${PROJECT_VERSION}")
+
+include(CTest)
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()

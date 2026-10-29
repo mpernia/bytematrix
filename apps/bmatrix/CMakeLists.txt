@@ -20,3 +20,5 @@ add_executable(bmatrix main.cpp)
 
 target_include_directories(bmatrix PRIVATE ${VENDOR_DIR})
 target_link_libraries(bmatrix PRIVATE ${VENDOR_DIR}/libbytematrix.a)
+
+target_compile_options(bmatrix PRIVATE -Wall -Wextra)

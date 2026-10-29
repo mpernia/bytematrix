@@ -3,6 +3,6 @@
 #include "bytematrix.h"
 
 int main() {
-    std::cout << "bytematrix library version: " << version() << '\n';
+    std::cout << "bytematrix library version: " << bytematrix::version() << '\n';
     return 0;
 }

@@ -75,10 +75,16 @@ Testing/
 .cache/
 
 # IDs config dirs
+.idea
+.vscode
 */.idea/*
 
 # Build stamps
 .docker-image.stamp
 docker/.image.stamp
+
+# Artifacts produced by `make vendor`: copied into the consumer tree, never
+# committed (a stale copy would silently shadow the real header).
+apps/bmatrix/libs/
 
 

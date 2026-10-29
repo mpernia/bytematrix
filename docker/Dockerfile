@@ -2,7 +2,8 @@
 #
 # Isolated build environment for the bytematrix monorepo.
 #
-# Toolchain: Debian (trixie) + GCC 14 (C++20) + CMake + GoogleTest + gdb/valgrind.
+# Toolchain: Debian (trixie) + GCC 14 (C++20) + CMake + GoogleTest + gdb/valgrind,
+# plus clang-format and clang-tidy for style and static analysis.
 # The image is only a toolchain: the sources are bind-mounted at /workspace, so
 # nothing of the project is compiled into the image.
 FROM debian:trixie-slim
@@ -24,6 +25,8 @@ RUN apt-get update \
         build-essential \
         make \
         cmake \
+        clang-format \
+        clang-tidy \
         pkg-config \
         gcc-14 \
         g++-14 \

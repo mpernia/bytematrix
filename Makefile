@@ -10,6 +10,7 @@ BUILD_TYPE ?= Debug
 BUILD      ?= build
 JOBS       ?= $(shell nproc)
 SECONDS    ?= 100
+BUILD_TESTING ?= ON
 
 # Paths inside the container (the repository is mounted at /workspace).
 WORKDIR := /workspace
@@ -81,9 +82,10 @@ lib: ## Change directory to the static library (no installation)
 	@cd $(WORKDIR)/$(LIB_DIR) && exec $${SHELL:-bash}
 
 .PHONY: vendor
-vendor: ## Copy the header and the static library into apps/bmatrix/libs/bytematrix
+vendor: ## Compile the library, then copy header and archive into apps/bmatrix/libs/bytematrix
+	@$(MAKE) --no-print-directory -C $(WORKDIR)/$(LIB_DIR) BUILD_TYPE=$(BUILD_TYPE) JOBS=$(JOBS) BUILD_TESTING=$(BUILD_TESTING)
 	@mkdir -p $(WORKDIR)/$(VENDOR_DIR)
-	@cp $(WORKDIR)/$(LIB_DIR)/bytematrix.h $(WORKDIR)/$(VENDOR_DIR)/
+	@cp $(WORKDIR)/$(LIB_DIR)/include/bytematrix.h $(WORKDIR)/$(VENDOR_DIR)/
 	@cp $(WORKDIR)/$(LIB_DIR)/build/*.a $(WORKDIR)/$(VENDOR_DIR)/
 
 .PHONY: demo
@@ -91,15 +93,14 @@ demo: ## Change directory to the demo project
 	@cd $(WORKDIR)/$(DEMO_DIR) && exec $${SHELL:-bash}
 
 .PHONY: build
-build: ## Compile the library and the demo
-	@$(MAKE) --no-print-directory -C $(WORKDIR)/$(LIB_DIR) BUILD_TYPE=$(BUILD_TYPE) JOBS=$(JOBS)
-	@$(MAKE) --no-print-directory -C $(WORKDIR) vendor
+build: vendor ## Compile the library and the demo
 	@$(MAKE) --no-print-directory -C $(WORKDIR)/$(DEMO_DIR) BUILD_TYPE=$(BUILD_TYPE) JOBS=$(JOBS)
 
 .PHONY: install
 install: ## Install the library into build/prefix (for external consumers)
+	@$(MAKE) --no-print-directory -C $(WORKDIR)/$(LIB_DIR) BUILD_TYPE=$(BUILD_TYPE) JOBS=$(JOBS) BUILD_TESTING=$(BUILD_TESTING)
 	@mkdir -p $(PREFIX)/lib $(PREFIX)/include
-	@cp $(WORKDIR)/$(LIB_DIR)/bytematrix.h $(PREFIX)/include/
+	@cp $(WORKDIR)/$(LIB_DIR)/include/bytematrix.h $(PREFIX)/include/
 	@cp $(WORKDIR)/$(LIB_DIR)/build/*.a $(PREFIX)/lib/
 
 

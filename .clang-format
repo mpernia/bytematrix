@@ -1,0 +1,37 @@
+# Describes the style the sources already use: braces on their own line for
+# functions, classes and control statements, but attached for namespaces;
+# 4-space indent with namespace contents indented; empty bodies kept inline.
+BasedOnStyle: LLVM
+IndentWidth: 4
+ContinuationIndentWidth: 4
+NamespaceIndentation: All
+AccessModifierOffset: -4
+ColumnLimit: 100
+PointerAlignment: Left
+SortIncludes: true
+IncludeBlocks: Preserve
+
+# Only empty functions stay on one line; a one-statement body gets split.
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortLambdasOnASingleLine: None
+FixNamespaceComments: false
+
+# `template <...>` keeps its own line above the declaration.
+BreakTemplateDeclarations: Yes
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel: false
+  AfterClass: true
+  AfterControlStatement: Always
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: false
+  AfterStruct: true
+  AfterUnion: true
+  AfterExternBlock: true
+  BeforeCatch: true
+  BeforeElse: true
+  SplitEmptyFunction: false
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: true

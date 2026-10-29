@@ -1,63 +1,148 @@
 # bytematrix
 
-A three-stage byte-stream pipeline packaged as a static C++ library and a demo application that exercises it end-to-end.
+A C++20 static library plus a demo consumer that models a three-stage byte-stream pipeline.
 
-bytematrix models a simple producer/filter/recorder pipeline:
+[![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://isocpp.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/Container-Docker-2496ED.svg)](docker/Dockerfile)
 
-- Generator: emits byte arrays of random length and content.
-- Filter: keeps only payloads that contain a configured byte sequence.
-- Recorder: receives matching payloads and logs the observed records in time order.
+bytematrix demonstrates a small concurrent pipeline built around a producer, a filtering stage, and a recorder sink. The library is designed to be reusable, while the demo app shows how it behaves end-to-end in a realistic consumer scenario.
 
-The project is organized as a small multi-project CMake workspace built and tested inside a Dockerized development environment.
+## Table of contents
 
-## Repository layout
+- [Overview](#overview)
+- [Project structure](#project-structure)
+- [Pipeline design](#pipeline-design)
+- [Public API](#public-api)
+- [Demo application](#demo-application)
+- [Build and test](#build-and-test)
+- [Examples](#examples)
+- [Requirements](#requirements)
+- [License](#license)
 
-- `libs/bytematrix/`: static library implementation and tests
-- `apps/bmatrix/`: demo consumer application that builds against the library
-- `docker/`: Docker setup for the dev container
-- `Makefile`: root orchestration for build, test, and tooling tasks
+## Overview
 
-## Library API
+The project is intentionally compact and educational:
 
-The public interface is exposed through `libs/bytematrix/include/bytematrix.h`.
+- `libs/bytematrix` contains the reusable static library
+- `apps/bmatrix` contains a demo application that consumes the library
+- `docker/` provides the local development container used for building and testing
+- the root `Makefile` orchestrates the workflow for contributors
 
-The library provides:
+The library exposes a generic module interface and a producer/filter/recorder pipeline that can be wired together by composition.
 
-- `bytematrix::IModule`: abstract pipeline stage interface
-- `bytematrix::createGenerator()`: creates the byte source module
-- `bytematrix::createFilter(ByteArray sequence)`: creates a matching filter stage
-- `bytematrix::createRecorder()`: creates the sink that captures matching payloads
-- `bytematrix::ByteArray`: byte vector type used across the pipeline
+## Project structure
 
-The input/output contracts are intentionally simple:
+```text
+bytematrix/
+├── LICENSE
+├── Makefile
+├── README.md
+├── apps/
+│   └── bmatrix/
+│       ├── CMakeLists.txt
+│       ├── Makefile
+│       ├── PipelineRunner.cpp
+│       ├── PipelineRunner.hpp
+│       ├── PipelineRunner_test.cpp
+│       └── main.cpp
+├── docker/
+│   ├── Dockerfile
+│   └── docker-compose.yml
+└── libs/
+    └── bytematrix/
+        ├── CMakeLists.txt
+        ├── Makefile
+        ├── include/
+        │   └── bytematrix.h
+        ├── src/
+        └── tests/
+```
 
-- each stage can receive one payload at a time
-- each stage has an internal worker thread
-- the pipeline uses bounded buffering and backpressure to avoid unbounded memory growth
+## Pipeline design
+
+The library models a three-stage processing chain:
+
+1. Generator
+   - emits byte arrays of random length and content
+   - continuously pushes data downstream
+
+2. Filter
+   - receives generated payloads
+   - searches for a configured byte sequence inside each array
+   - only forwards matching byte arrays
+
+3. Recorder
+   - receives the filtered payloads
+   - stores the observed matching records
+   - prints the accumulated history in time order
+
+This setup illustrates a compact dataflow architecture with concurrency, internal buffering, and backpressure handling.
+
+## Public API
+
+The public interface is declared in `libs/bytematrix/include/bytematrix.h`.
+
+```cpp
+namespace bytematrix {
+
+    std::string_view version() noexcept;
+
+    inline constexpr std::size_t kInputBufferCapacity = 100;
+
+    using ByteArray = std::vector<std::uint8_t>;
+
+    class IModule {
+    public:
+        virtual ~IModule() = default;
+        virtual void setNext(IModule* next) = 0;
+        virtual void start() = 0;
+        virtual void stop() = 0;
+        virtual bool submit(ByteArray data) = 0;
+    };
+
+    [[nodiscard]] std::unique_ptr<IModule> createGenerator();
+    [[nodiscard]] std::unique_ptr<IModule> createFilter(ByteArray sequence);
+    [[nodiscard]] std::unique_ptr<IModule> createRecorder();
+}
+```
+
+Key characteristics:
+
+- a module owns an internal worker thread
+- stages can be chained through `setNext()`
+- each stage buffers input with bounded capacity
+- the library uses backpressure rather than uncontrolled memory growth
 
 ## Demo application
 
-The demo lives under `apps/bmatrix` and drives a real pipeline instance using a configurable runtime and target sequence.
+The demo app under `apps/bmatrix` creates a real runnable pipeline and executes it for a configurable duration.
 
-Example usage:
+It accepts:
+
+- the number of seconds to run
+- an optional target sequence as comma-separated hex bytes
+
+Example:
 
 ```bash
 ./bmatrix 30 00,01,02
 ```
 
-This runs the demo for 30 seconds while searching for the byte sequence `00 01 02`.
+This runs for 30 seconds and looks for the sequence `00 01 02`.
 
-The application supports:
+The parser accepts values such as:
 
-- duration in seconds
-- sequence parsing from comma-separated hex values such as `00,01,02` or `0x0,0x1,0x2`
-- graceful error handling for invalid arguments
+- `00,01,02`
+- `0x0,0x1,0x2`
 
-## Build and test workflow
+It rejects malformed inputs and prints usage information when arguments are invalid.
 
-This repository uses Docker + Make as the primary developer workflow. The root `Makefile` starts a containerized environment and delegates build/test commands to each subproject.
+## Build and test
 
-Common commands:
+The repository is designed to be built inside a Docker development container. The root `Makefile` provides the high-level workflow.
+
+### Core commands
 
 ```bash
 make init
@@ -67,31 +152,62 @@ make tidy
 make shell
 ```
 
-Useful lower-level commands:
+### Lower-level commands
 
 ```bash
 make exec CMD="ctest --test-dir build/test"
 make exec CMD="cd libs/bytematrix && cmake -S . -B build && cmake --build build"
 ```
 
-## How the pipeline works
+### Library project
 
-1. The generator produces a stream of random byte arrays.
-2. The filter checks whether the configured byte sequence appears in each array.
-3. Matching payloads are passed to the recorder, which records them and prints the history seen so far.
+```bash
+cd libs/bytematrix
+make test
+make tidy-src
+```
 
-This creates a simplified but realistic producer-consumer architecture with concurrency, buffering, and incremental observation.
+### Demo project
+
+```bash
+cd apps/bmatrix
+make test
+make tidy
+```
+
+## Examples
+
+### Run the default demo
+
+```bash
+make build
+./apps/bmatrix/build/bmatrix
+```
+
+### Run with a custom timeout and sequence
+
+```bash
+./apps/bmatrix/build/bmatrix 20 7f,00,ff
+```
+
+### Build and validate everything
+
+```bash
+make init
+make test
+```
 
 ## Requirements
 
 - Docker
 - GNU Make
-- A Linux-like environment capable of running the provided development container
+- a Linux-like environment able to run the provided dev container
+- C++20 toolchain inside the container
 
 ## License
 
-This project is distributed under the MIT License. See `LICENSE` for details.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## Notes
 
-The repository is intentionally structured as a small C++20 learning project and demo system: it keeps the library and consumer application separated, uses static linking, and demonstrates how to build a reusable library plus a concrete application around it.
+This repository is intentionally small and focused. It aims to demonstrate a practical pattern for creating a reusable C++ library and a separate consumer application that integrates with it in a clean, maintainable structure.
